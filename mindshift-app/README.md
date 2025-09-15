@@ -1,71 +1,52 @@
-<em>MindShift 🧠✨</em>
+<div align="center">
 
+MindShift 🧠✨
+An AI-Powered CBT Companion for Real-Time Thought Reframing
+</div>
 
-<p align="center">
-<em>An AI-Powered CBT Companion for Real-Time Thought Reframing</em>
-</p>
+<br>
 
-💡 The Vision: An Active Partner, Not a Passive Library
-Traditional wellness apps are static. They give you articles to read when you're feeling down. MindShift is an active tool. It's a secure, AI-driven companion that engages you in a structured, empathetic conversation the moment you need it, helping you analyze and reframe negative thoughts.
+Traditional wellness apps are static libraries. MindShift is an active tool. It's a secure, AI-driven companion that engages you in a structured, empathetic conversation the moment you need it, helping you analyze and reframe negative thoughts based on proven Cognitive Behavioral Therapy (CBT) principles.
 
-🎯 Core Features & Implementation
-🔐 Secure User Authentication & Sessions
-
-Full user registration and login system built with Firebase Authentication.
-
-Ensures all user data and conversations are private and session persistence is handled securely.
-
-🧠 Dynamic & Empathetic AI Dialogue
-
-The core chat experience is powered by the Google Gemini API.
-
-The AI's persona and therapeutic flow are meticulously controlled by an engineered system prompt, ensuring safe and effective interactions.
-
-💾 Real-Time & Persistent Data
-
-Conversations are saved in real-time to a Firestore (NoSQL) database.
-
-The application is architected to be real-time by default, loading and updating chat history instantly.
-
-⚛️ Reactive & Modern Frontend
-
-A responsive and beautiful UI built with React.js and styled with Tailwind CSS.
-
-Application state is managed efficiently with React Hooks for a smooth, intuitive user experience.
+🎯 Core Features & Technical Implementation
+<table>
+<tr>
+<td width="50%" valign="top">
+<h3>🔐 Secure & Serverless Backend</h3>
+<ul>
+<li>Engineered a robust backend using <b>Google Firebase</b>.</li>
+<li>Utilizes <b>Firestore (NoSQL)</b> for real-time, persistent storage of user conversations.</li>
+<li>Secured with <b>Firebase Authentication</b> for user registration, login, and session management.</li>
+</ul>
+</td>
+<td width="50%" valign="top">
+<h3>🧠 Intelligent & Empathetic AI</h3>
+<ul>
+<li>Core conversational logic powered by the <b>Google Gemini API</b>.</li>
+<li>Developed a meticulous <b>system prompt</b> that guides the AI's persona, tone, and therapeutic flow.</li>
+<li>Manages asynchronous API calls and handles data transformation for seamless conversation.</li>
+</ul>
+</td>
+</tr>
+</table>
 
 🛠️ Tech Stack & Architecture
 Built on a modern, scalable, and secure serverless architecture.
 
-Category
-
-Technology
-
 Frontend
+React.js Vite Tailwind CSS JavaScript (ES6+)
 
-React.js (Vite), Tailwind CSS
-
-Backend
-
-Google Firebase (Serverless)
-
-Database
-
-Firestore (NoSQL, Real-time)
-
-Auth
-
-Firebase Authentication
+Backend & Database
+Firebase Firestore (NoSQL) Firebase Authentication
 
 AI / APIs
-
 Google Gemini API
 
-Language
+🚀 Getting Started & Project Roadmap
+<details>
+<summary><strong>► Click to expand for Setup Instructions</strong></summary>
 
-JavaScript (ES6+)
-
-🚀 Getting Started
-To get a local copy up and running, follow these steps.
+<br>
 
 Clone & Install:
 
@@ -86,7 +67,13 @@ Run the App:
 
 npm run dev
 
-🗺️ Project Roadmap
+</details>
+
+<details>
+<summary><strong>► Click to expand for Future Development Plans</strong></summary>
+
+<br>
+
 This is the foundational version of a larger vision. Future development includes:
 
 [ ] Dashboard & Insights: Visualize common thought patterns and track progress.
@@ -96,3 +83,5 @@ This is the foundational version of a larger vision. Future development includes
 [ ] Mood Tracking: Log daily moods to find correlations with thoughts.
 
 [ ] Native Mobile App: Develop a native iOS/Android experience.
+
+</details>
