@@ -23,3 +23,42 @@ dist-ssr
 *.sln
 *.sw?
 *.env
+
+# macOS system files
+.AppleDouble
+.LSOverride
+Icon?
+
+# Vite output
+.vite
+
+# Build output
+build/
+coverage/
+
+# React specific
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Misc
+*.tgz
+*.bak
+*.tmp
+*.log.*
+debug.log
+debug-*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.Spotlight-V100
+.Trashes
+.fseventsd

@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCepCXZxCQ-zTa4Uw8Rw_iebfWuJFLb5dA",
-  authDomain: "mindshift-app-v1.firebaseapp.com",
-  projectId: "mindshift-app-v1",
-  storageBucket: "mindshift-app-v1.firebasestorage.app",
-  messagingSenderId: "705091851511",
-  appId: "1:705091851511:web:dfc599bab549662d0feff2"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
