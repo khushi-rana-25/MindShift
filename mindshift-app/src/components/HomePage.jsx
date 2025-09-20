@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { callGeminiAPI } from '../gemini';
 import LoadingIndicator from "./LoadingIndicator";
 import ReactMarkdown from 'react-markdown';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion, orderBy } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion, orderBy, deleteDoc } from "firebase/firestore";
 
 function HomePage({user}) {
     const [alertInfo, setAlertInfo] = useState(null);
@@ -18,6 +18,7 @@ function HomePage({user}) {
     // --- 1. NEW STATE MANAGEMENT ---
     const [conversationList, setConversationList] = useState([]);
     const [activeConversationId, setActiveConversationId] = useState(null);
+    const [convoToDelete, setConvoToDelete] = useState(null);
 
     // --- 2. NEW LOGIC: This effect fetches the LIST of conversations for the sidebar ---
     useEffect(() => {
@@ -92,6 +93,27 @@ function HomePage({user}) {
         }
     };
 
+    const handleConfirmDelete = async () => {
+        if (!convoToDelete) return; // Safety check
+
+        // If the user is deleting the chat they are currently viewing,
+        // we should select a new chat or clear the screen.
+        if (convoToDelete === activeConversationId) {
+            setActiveConversationId(null);
+        }
+
+        try {
+            // This is the command that deletes the document from Firestore
+            await deleteDoc(doc(db, "conversations", convoToDelete));
+            setConvoToDelete(null); // Close the confirmation dialog on success
+        } catch (error) {
+            console.error("Error deleting conversation:", error);
+            setAlertInfo({ type: 'error', message: 'Failed to delete chat.' });
+            setConvoToDelete(null); // Close the dialog even if there's an error
+        }
+    };
+
+
     const startNewChat = () => {
         setActiveConversationId(null);
         setMessages([{ text: "Welcome. Let's reframe a thought. What's on your mind today?", sender: 'app' }]);
@@ -110,6 +132,31 @@ function HomePage({user}) {
             )}
 
             {/* --- Sidebar --- */}
+            {convoToDelete && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-lg flex items-center justify-center z-50">
+                    <div className="relative w-full max-w-md p-6 bg-slate-800 rounded-xl shadow-2xl border border-white/10 animate-fade-in">
+                        <h3 className="text-lg font-semibold text-slate-100">Confirm Deletion</h3>
+                        <p className="mt-2 text-sm text-slate-300">
+                            Are you sure you want to permanently delete this chat? This action cannot be undone.
+                        </p>
+                        <div className="mt-6 flex justify-end space-x-4">
+                            <button
+                                onClick={() => setConvoToDelete(null)}
+                                className="px-5 py-2 text-sm font-semibold text-slate-300 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="px-5 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <aside className="w-64 flex flex-col bg-slate-800 border-r border-slate-700">
                 <div className="p-4 border-b border-slate-700">
                     <button onClick={startNewChat} className="w-full px-4 py-2 text-sm font-semibold text-white bg-cyan-600 rounded-md hover:bg-cyan-700">
@@ -119,15 +166,28 @@ function HomePage({user}) {
                 </div>
                 <nav className="flex-grow p-2 space-y-1 overflow-y-auto">
                     {conversationList.map(convo => (
-                        <button 
-                          key={convo.id}
-                          onClick={() => setActiveConversationId(convo.id)}
-                          className={`w-full text-left block px-4 py-2 text-sm rounded-md truncate ${
-                            convo.id === activeConversationId ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700'
-                          }`}
-                        >
-                            {convo.title}
-                        </button>
+                        <div key={convo.id} className="relative group">
+                            <button 
+                              onClick={() => setActiveConversationId(convo.id)}
+                              className={`w-full text-left block px-4 py-2 text-sm rounded-md truncate ${
+                                convo.id === activeConversationId ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                                {convo.title}
+                            </button>
+                            {/* The delete button will only appear when you hover over the item */}
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Prevents the chat from being selected
+                                    setConvoToDelete(convo.id);
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 rounded-md opacity-0 group-hover:opacity-100 hover:bg-slate-600 hover:text-red-400 transition-opacity"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
                     ))}
                 </nav>
                 <div className="p-4 border-t border-slate-700">
