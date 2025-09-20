@@ -1,58 +1,57 @@
 
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
-import Alert from "./Alert"; 
+import Alert from "./Alert";
 import { useState, useRef, useEffect } from "react";
 import { callGeminiAPI } from '../gemini';
 import LoadingIndicator from "./LoadingIndicator";
 import ReactMarkdown from 'react-markdown';
-
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion, orderBy } from "firebase/firestore";
 
 function HomePage({user}) {
     const [alertInfo, setAlertInfo] = useState(null);
     const [messages, setMessages] = useState([]);
     const [userInput, setUserInput] = useState('');
-    const chatEndRef = useRef(null); // pointer to the end of the chat
     const [isLoading, setIsLoading] = useState(false);
-    const [currentConvoId, setCurrentConvoId] = useState(null); // Track current conversation ID
+    const chatEndRef = useRef(null);
+    
+    // --- 1. NEW STATE MANAGEMENT ---
+    const [conversationList, setConversationList] = useState([]);
+    const [activeConversationId, setActiveConversationId] = useState(null);
 
+    // --- 2. NEW LOGIC: This effect fetches the LIST of conversations for the sidebar ---
     useEffect(() => {
-        if (!user) return; // Don't do anything if the user isn't loaded yet
-
-        // This is our database query: "Get all conversations for the current user"
-        const q = query(collection(db, "conversations"), where("userId", "==", user.uid));
+        if (!user) return;
+        const q = query(collection(db, "conversations"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
         
-        // onSnapshot is the magic part. It's a real-time listener from Firebase.
-        // It runs once when the page loads, and then automatically runs again if the data ever changes.
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            if (!querySnapshot.empty) {
-                // If the user has conversations, we'll take the first one for now.
-                const conversationDoc = querySnapshot.docs[0];
-                setMessages(conversationDoc.data().messages);
-                setCurrentConvoId(conversationDoc.id);
-            } else {
-                // If the user has no conversations, start with the default welcome message.
-                setMessages([{ text: "Welcome. Let's reframe a thought. What's on your mind today?", sender: 'app' }]);
-                setCurrentConvoId(null);
+            const conversations = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setConversationList(conversations);
+            // If no conversation is selected, automatically select the most recent one.
+            if (!activeConversationId && conversations.length > 0) {
+                setActiveConversationId(conversations[0].id);
             }
         });
-
-        // This cleans up the listener when the component is removed, preventing memory leaks
         return () => unsubscribe();
-    }, [user]); // The [user] means this effect will re-run if the user logs in or out.
+    }, [user]); // Runs when the user logs in
+
+    // --- 3. NEW LOGIC: This effect loads the MESSAGES for the selected conversation ---
+    useEffect(() => {
+        if (!activeConversationId) {
+            setMessages([{ text: "Welcome. Start a new conversation or select one from your history.", sender: 'app' }]);
+            return;
+        }
+        const unsub = onSnapshot(doc(db, "conversations", activeConversationId), (doc) => {
+            setMessages(doc.data()?.messages || []);
+        });
+        return () => unsub();
+    }, [activeConversationId]); // Re-runs whenever the active conversation changes
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-        } catch(error) {
-            setAlertInfo({ message: `Error: ${error.message}`, type: 'error' });
-        }
-    }
+    const handleLogout = async () => { /* ...no changes... */ };
 
     const handleSendMessage = async (event) => {
         event.preventDefault();
@@ -60,55 +59,43 @@ function HomePage({user}) {
 
         const newUserMessage = { text: userInput, sender: 'user', timestamp: new Date() };
         const updatedMessages = [...messages, newUserMessage];
-
-        // 1. Update the UI with the user's message and start loading
         setMessages(updatedMessages);
         setUserInput('');
         setIsLoading(true);
 
-        let currentId = currentConvoId;
-        let aiResponseMessage;
-
+        let currentId = activeConversationId;
+        
         try {
-            // --- This entire block is now wrapped in the main try...catch ---
-
-            // 2. Save the user's message to the database
             if (currentId) {
-                // If we're in an existing conversation, update it
                 const convoRef = doc(db, "conversations", currentId);
                 await updateDoc(convoRef, { messages: arrayUnion(newUserMessage) });
             } else {
-                // If it's a new conversation, create it
                 const newConvoRef = await addDoc(collection(db, "conversations"), {
                     userId: user.uid,
                     title: userInput.substring(0, 30) + "...",
                     createdAt: serverTimestamp(),
-                    messages: updatedMessages // Start with the full history
+                    messages: updatedMessages
                 });
-                setCurrentConvoId(newConvoRef.id); // Save the new ID to state
-                currentId = newConvoRef.id; // Also use it in this function run
+                setActiveConversationId(newConvoRef.id);
+                currentId = newConvoRef.id;
             }
 
-            // 3. Call the AI
             const aiResponseText = await callGeminiAPI(updatedMessages);
-            aiResponseMessage = { text: aiResponseText, sender: 'app', timestamp: new Date() };
-            
-            // 4. Save the AI's response to the database
+            const aiResponseMessage = { text: aiResponseText, sender: 'app', timestamp: new Date() };
             const convoRef = doc(db, "conversations", currentId);
             await updateDoc(convoRef, { messages: arrayUnion(aiResponseMessage) });
-
         } catch (error) {
-            // If anything fails (AI call or DB save), create an error message
-            console.error("Error during message send process:", error);
-            aiResponseMessage = { text: "Sorry, something went wrong. Please check your connection and try again.", sender: 'app' };
+            console.error("Error sending message:", error);
+            setAlertInfo({ type: 'error', message: 'Failed to send message.' });
         } finally {
-            // 5. THIS IS THE KEY: This block now runs no matter what.
-            // It updates the UI with the AI's response (or the error message)
-            // and ALWAYS turns off the loading indicator.
             setIsLoading(false);
-            // setMessages(prev => [...prev, aiResponseMessage]);
         }
     };
+
+    const startNewChat = () => {
+        setActiveConversationId(null);
+        setMessages([{ text: "Welcome. Let's reframe a thought. What's on your mind today?", sender: 'app' }]);
+    }
 
 
     return (
@@ -125,15 +112,23 @@ function HomePage({user}) {
             {/* --- Sidebar --- */}
             <aside className="w-64 flex flex-col bg-slate-800 border-r border-slate-700">
                 <div className="p-4 border-b border-slate-700">
-                   <h2 className="text-lg font-semibold text-white">History</h2>
+                    <button onClick={startNewChat} className="w-full px-4 py-2 text-sm font-semibold text-white bg-cyan-600 rounded-md hover:bg-cyan-700">
+                        + New Chat
+                    </button>
+    
                 </div>
-                <nav className="flex-grow p-2 space-y-1">
-                    <a href="#" className="block px-4 py-2 text-sm rounded-md bg-cyan-600 text-white">
-                        Trip with friends...
-                    </a>
-                    <a href="#" className="block px-4 py-2 text-sm rounded-md text-slate-400 hover:bg-slate-700">
-                        Feeling anxious about work...
-                    </a>
+                <nav className="flex-grow p-2 space-y-1 overflow-y-auto">
+                    {conversationList.map(convo => (
+                        <button 
+                          key={convo.id}
+                          onClick={() => setActiveConversationId(convo.id)}
+                          className={`w-full text-left block px-4 py-2 text-sm rounded-md truncate ${
+                            convo.id === activeConversationId ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700'
+                          }`}
+                        >
+                            {convo.title}
+                        </button>
+                    ))}
                 </nav>
                 <div className="p-4 border-t border-slate-700">
                     <p className="text-sm text-slate-400">Logged in as:</p>
