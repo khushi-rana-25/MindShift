@@ -1,21 +1,46 @@
 
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 import Alert from "./Alert"; 
 import { useState, useRef, useEffect } from "react";
 import { callGeminiAPI } from '../gemini';
 import LoadingIndicator from "./LoadingIndicator";
 import ReactMarkdown from 'react-markdown';
 
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion } from "firebase/firestore";
+
 function HomePage({user}) {
     const [alertInfo, setAlertInfo] = useState(null);
-    const [messages, setMessages] = useState([
-        { text: "Welcome. Let's reframe a thought. What's on your mind today?", sender: 'app' }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [userInput, setUserInput] = useState('');
-
     const chatEndRef = useRef(null); // pointer to the end of the chat
     const [isLoading, setIsLoading] = useState(false);
+    const [currentConvoId, setCurrentConvoId] = useState(null); // Track current conversation ID
+
+    useEffect(() => {
+        if (!user) return; // Don't do anything if the user isn't loaded yet
+
+        // This is our database query: "Get all conversations for the current user"
+        const q = query(collection(db, "conversations"), where("userId", "==", user.uid));
+        
+        // onSnapshot is the magic part. It's a real-time listener from Firebase.
+        // It runs once when the page loads, and then automatically runs again if the data ever changes.
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            if (!querySnapshot.empty) {
+                // If the user has conversations, we'll take the first one for now.
+                const conversationDoc = querySnapshot.docs[0];
+                setMessages(conversationDoc.data().messages);
+                setCurrentConvoId(conversationDoc.id);
+            } else {
+                // If the user has no conversations, start with the default welcome message.
+                setMessages([{ text: "Welcome. Let's reframe a thought. What's on your mind today?", sender: 'app' }]);
+                setCurrentConvoId(null);
+            }
+        });
+
+        // This cleans up the listener when the component is removed, preventing memory leaks
+        return () => unsubscribe();
+    }, [user]); // The [user] means this effect will re-run if the user logs in or out.
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,25 +58,58 @@ function HomePage({user}) {
         event.preventDefault();
         if (!userInput.trim()) return;
 
-        const newUserMessage = { text: userInput, sender: 'user' };
+        const newUserMessage = { text: userInput, sender: 'user', timestamp: new Date() };
         const updatedMessages = [...messages, newUserMessage];
+
+        // 1. Update the UI with the user's message and start loading
         setMessages(updatedMessages);
         setUserInput('');
-
         setIsLoading(true);
+
+        let currentId = currentConvoId;
         let aiResponseMessage;
 
-        try{
+        try {
+            // --- This entire block is now wrapped in the main try...catch ---
+
+            // 2. Save the user's message to the database
+            if (currentId) {
+                // If we're in an existing conversation, update it
+                const convoRef = doc(db, "conversations", currentId);
+                await updateDoc(convoRef, { messages: arrayUnion(newUserMessage) });
+            } else {
+                // If it's a new conversation, create it
+                const newConvoRef = await addDoc(collection(db, "conversations"), {
+                    userId: user.uid,
+                    title: userInput.substring(0, 30) + "...",
+                    createdAt: serverTimestamp(),
+                    messages: updatedMessages // Start with the full history
+                });
+                setCurrentConvoId(newConvoRef.id); // Save the new ID to state
+                currentId = newConvoRef.id; // Also use it in this function run
+            }
+
+            // 3. Call the AI
             const aiResponseText = await callGeminiAPI(updatedMessages);
-            aiResponseMessage = { text: aiResponseText, sender: 'app' };
-        }catch(error){
-            aiResponseMessage = { text: "Sorry, something went wrong. Please try again.", sender: 'app' };
-            console.error(error);
-        }finally {
+            aiResponseMessage = { text: aiResponseText, sender: 'app', timestamp: new Date() };
+            
+            // 4. Save the AI's response to the database
+            const convoRef = doc(db, "conversations", currentId);
+            await updateDoc(convoRef, { messages: arrayUnion(aiResponseMessage) });
+
+        } catch (error) {
+            // If anything fails (AI call or DB save), create an error message
+            console.error("Error during message send process:", error);
+            aiResponseMessage = { text: "Sorry, something went wrong. Please check your connection and try again.", sender: 'app' };
+        } finally {
+            // 5. THIS IS THE KEY: This block now runs no matter what.
+            // It updates the UI with the AI's response (or the error message)
+            // and ALWAYS turns off the loading indicator.
             setIsLoading(false);
-            setMessages(prevMessages => [...prevMessages, aiResponseMessage]);
+            // setMessages(prev => [...prev, aiResponseMessage]);
         }
     };
+
 
     return (
         <div className="flex h-screen bg-slate-900 text-white">
