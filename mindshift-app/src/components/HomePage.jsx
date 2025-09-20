@@ -8,6 +8,11 @@ import LoadingIndicator from "./LoadingIndicator";
 import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, arrayUnion, orderBy, deleteDoc } from "firebase/firestore";
 
+const NewChatIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>;
+const LogoutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
+const SendIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" transform="rotate(90 12 12)" /></svg>;
+const DeleteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
+
 function HomePage({user}) {
     const [alertInfo, setAlertInfo] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -52,8 +57,15 @@ function HomePage({user}) {
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
-
-    const handleLogout = async () => { };
+    
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Error logging out:", error);
+            setAlertInfo({ message: `Error: ${error.message}`, type: 'error' });
+        }
+    };
 
     const handleSendMessage = async (event) => {
         event.preventDefault();
@@ -158,87 +170,60 @@ function HomePage({user}) {
                 </div>
             )}
 
-            <aside className="w-64 flex flex-col bg-slate-800 border-r border-slate-700">
-                <div className="p-4 border-b border-slate-700">
-                    <button onClick={startNewChat} className="w-full px-4 py-2 text-sm font-semibold text-white bg-cyan-600 rounded-md hover:bg-cyan-700">
-                        + New Chat
+            <aside className="w-64 flex flex-col bg-slate-800/50 backdrop-blur-lg border-r border-white/10">
+                <div className="p-4 border-b border-white/10">
+                    <button onClick={startNewChat} className="w-full flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg">
+                        <NewChatIcon /> New Chat
                     </button>
-    
                 </div>
                 <nav className="flex-grow p-2 space-y-1 overflow-y-auto">
                     {conversationList.map(convo => (
                         <div key={convo.id} className="relative group">
-                            <button 
-                              onClick={() => setActiveConversationId(convo.id)}
-                              className={`w-full text-left block px-4 py-2 text-sm rounded-md truncate ${
-                                convo.id === activeConversationId ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700'
-                              }`}
-                            >
+                            <button onClick={() => setActiveConversationId(convo.id)} className={`w-full text-left block px-4 py-2 text-sm rounded-md truncate transition-colors ${ convo.id === activeConversationId ? 'bg-slate-700/50 text-white' : 'text-slate-300 hover:bg-slate-700/50' }`}>
                                 {convo.title}
                             </button>
-                            
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setConvoToDelete(convo.id);
-                                }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 rounded-md opacity-0 group-hover:opacity-100 hover:bg-slate-600 hover:text-red-400 transition-opacity"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
+                            <button onClick={(e) => { e.stopPropagation(); setConvoToDelete(convo.id); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 rounded-md opacity-0 group-hover:opacity-100 hover:bg-slate-600/50 hover:text-red-400 transition-opacity">
+                                <DeleteIcon />
                             </button>
                         </div>
                     ))}
                 </nav>
-                <div className="p-4 border-t border-slate-700">
-                    <p className="text-sm text-slate-400">Logged in as:</p>
-                    <p className="text-sm font-semibold text-cyan-400 truncate">{user.email}</p>
-                    <button 
-                        onClick={handleLogout}
-                        className="w-full mt-4 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700"
-                    >
-                        Log Out
+                <div className="p-4 border-t border-white/10">
+                    <p className="text-xs text-slate-400">Logged in as:</p>
+                    <p className="text-sm font-semibold text-cyan-300 truncate">{user?.email}</p>
+                    <button onClick={handleLogout} className="w-full mt-4 flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-red-600/80 rounded-lg hover:bg-red-600 transition-colors">
+                        <LogoutIcon /> Log Out
                     </button>
                 </div>
             </aside>
 
-            
+            {/* --- THE CHAT AREA --- */}
             <div className="flex flex-col flex-grow">
-                <header className="p-4 bg-slate-800 border-b border-slate-700 shadow-md">
-                    <h1 className="text-xl font-bold text-center text-cyan-400">MindShift Session</h1>
+                <header className="p-4 bg-slate-800/50 backdrop-blur-lg border-b border-white/10 shadow-md z-10">
+                    <h1 className="text-xl font-bold text-center text-cyan-300">MindShift Session</h1>
                 </header>
         
                 <main className="flex-grow p-4 overflow-y-auto space-y-4">
                     {messages.map((message, index) => (
-                        <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${message.sender === 'user' ? 'bg-cyan-600' : 'bg-slate-700'}`}>
-                                          <ReactMarkdown>
-                                              {message.text}  
-                                          </ReactMarkdown>
+                        <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-bubble-in`}>
+                            <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl shadow-md ${message.sender === 'user' ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'bg-slate-700 text-slate-200'}`}>
+                                <div className="prose prose-invert prose-p:my-0">
+                                    <ReactMarkdown>
+                                        {message.text}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                     ))}
-
                     {isLoading && <LoadingIndicator />}
-
                     <div ref={chatEndRef} />
                 </main>
-
-                <footer className="p-4 bg-slate-800 border-t border-slate-700">
-                    <form onSubmit={handleSendMessage} className="flex flex-items-center">
-                        <input
-                            type="text"
-                            placeholder="What's on your mind..."
-                            value = {userInput}
-                            onChange= {(e) => setUserInput(e.target.value)}
-                            className="w-full px-4 py-2 text-white bg-slate-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                        <button
-                            type="submit"
-                            className="px-4 py-2 font-semibold text-white bg-cyan-600 rounded-r-md hover:bg-cyan-700"
-                        >
-                            Send
+            
+                <footer className="p-4 bg-slate-800/50 backdrop-blur-lg border-t border-white/10">
+                    <form onSubmit={handleSendMessage} className="flex items-center">
+                        <input type="text" placeholder="What's on your mind..." value={userInput} onChange={(e) => setUserInput(e.target.value)} className="w-full px-4 py-3 text-white bg-slate-700/50 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-transparent focus:border-cyan-500" />
+                        <button type="submit" className="px-4 py-3 font-semibold text-white bg-gradient-to-br from-cyan-500 to-blue-500 rounded-r-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg">
+                            <SendIcon />
                         </button>
                     </form>
                 </footer>
