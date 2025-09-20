@@ -15,12 +15,12 @@ function HomePage({user}) {
     const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef(null);
     
-    // --- 1. NEW STATE MANAGEMENT ---
+    
     const [conversationList, setConversationList] = useState([]);
     const [activeConversationId, setActiveConversationId] = useState(null);
     const [convoToDelete, setConvoToDelete] = useState(null);
 
-    // --- 2. NEW LOGIC: This effect fetches the LIST of conversations for the sidebar ---
+    
     useEffect(() => {
         if (!user) return;
         const q = query(collection(db, "conversations"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
@@ -28,15 +28,15 @@ function HomePage({user}) {
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const conversations = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setConversationList(conversations);
-            // If no conversation is selected, automatically select the most recent one.
+            
             if (!activeConversationId && conversations.length > 0) {
                 setActiveConversationId(conversations[0].id);
             }
         });
         return () => unsubscribe();
-    }, [user]); // Runs when the user logs in
+    }, [user]);
 
-    // --- 3. NEW LOGIC: This effect loads the MESSAGES for the selected conversation ---
+    
     useEffect(() => {
         if (!activeConversationId) {
             setMessages([{ text: "Welcome. Start a new conversation or select one from your history.", sender: 'app' }]);
@@ -46,13 +46,14 @@ function HomePage({user}) {
             setMessages(doc.data()?.messages || []);
         });
         return () => unsub();
-    }, [activeConversationId]); // Re-runs whenever the active conversation changes
+    }, [activeConversationId]);
+
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleLogout = async () => { /* ...no changes... */ };
+    const handleLogout = async () => { };
 
     const handleSendMessage = async (event) => {
         event.preventDefault();
@@ -94,22 +95,22 @@ function HomePage({user}) {
     };
 
     const handleConfirmDelete = async () => {
-        if (!convoToDelete) return; // Safety check
+    if (!convoToDelete) return;
 
-        // If the user is deleting the chat they are currently viewing,
-        // we should select a new chat or clear the screen.
+        
+        
         if (convoToDelete === activeConversationId) {
             setActiveConversationId(null);
         }
 
         try {
-            // This is the command that deletes the document from Firestore
+            
             await deleteDoc(doc(db, "conversations", convoToDelete));
-            setConvoToDelete(null); // Close the confirmation dialog on success
+            setConvoToDelete(null);
         } catch (error) {
             console.error("Error deleting conversation:", error);
             setAlertInfo({ type: 'error', message: 'Failed to delete chat.' });
-            setConvoToDelete(null); // Close the dialog even if there's an error
+            setConvoToDelete(null);
         }
     };
 
@@ -131,7 +132,7 @@ function HomePage({user}) {
                 />
             )}
 
-            {/* --- Sidebar --- */}
+            
             {convoToDelete && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-lg flex items-center justify-center z-50">
                     <div className="relative w-full max-w-md p-6 bg-slate-800 rounded-xl shadow-2xl border border-white/10 animate-fade-in">
@@ -175,10 +176,10 @@ function HomePage({user}) {
                             >
                                 {convo.title}
                             </button>
-                            {/* The delete button will only appear when you hover over the item */}
+                            
                             <button 
                                 onClick={(e) => {
-                                    e.stopPropagation(); // Prevents the chat from being selected
+                                    e.stopPropagation();
                                     setConvoToDelete(convo.id);
                                 }}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 rounded-md opacity-0 group-hover:opacity-100 hover:bg-slate-600 hover:text-red-400 transition-opacity"
@@ -202,7 +203,7 @@ function HomePage({user}) {
                 </div>
             </aside>
 
-            {/* --- The Chat Area --- */}
+            
             <div className="flex flex-col flex-grow">
                 <header className="p-4 bg-slate-800 border-b border-slate-700 shadow-md">
                     <h1 className="text-xl font-bold text-center text-cyan-400">MindShift Session</h1>

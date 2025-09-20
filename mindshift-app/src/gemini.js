@@ -28,7 +28,7 @@ Your five-step conversation flow is:
 export async function callGeminiAPI(conversationHistory) {
 
     const formattedHistory = conversationHistory.map(message => ({
-    // If the sender is 'app', the role is 'model'. Otherwise, it's 'user'.
+    
     role: message.sender === 'app' ? 'model' : 'user',
     parts: [{ text: message.text }],
   }));
@@ -40,7 +40,7 @@ export async function callGeminiAPI(conversationHistory) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        // We send the system prompt and the recent chat history
+        
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: formattedHistory,
       }),
